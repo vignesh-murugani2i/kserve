@@ -148,6 +148,7 @@ class V2Endpoints:
         response, response_headers = await self.dataplane.infer(model_name=model_name,
                                                                 request=infer_request,
                                                                 headers=request_headers)
+        # response is an object that should be used like response.headers for accessing headers
 
         response, response_headers = self.dataplane.encode(model_name=model_name,
                                                            response=response,

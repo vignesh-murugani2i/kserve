@@ -49,11 +49,12 @@ class ARTModel(kserve.Model):  # pylint:disable=c-extension-no-member
         scoring_data = {'instances': input_image.tolist()}
 
         loop = asyncio.get_running_loop()
-        resp = loop.run_until_complete(self.predict(scoring_data))
+        resp, response_headers = loop.run_until_complete(self.predict(scoring_data))
         prediction = np.array(resp["predictions"])
         return [1 if x == prediction else 0 for x in range(0, self.nb_classes)]
 
     def explain(self, payload: Dict, headers: Dict[str, str] = None) -> Dict:
+        response_headers = {}
         image = payload["instances"][0]
         label = payload["instances"][1]
         try:
@@ -75,6 +76,6 @@ class ARTModel(kserve.Model):  # pylint:disable=c-extension-no-member
                 l2_error = np.linalg.norm(np.reshape(x_adv[0] - inputs, [-1]))
 
                 return {"explanations": {"adversarial_example": x_adv.tolist(), "L2 error": l2_error.tolist(),
-                                         "adversarial_prediction": adv_preds.tolist(), "prediction": preds.tolist()}}
+                                         "adversarial_prediction": adv_preds.tolist(), "prediction": preds.tolist()}}, response_headers
         except Exception as e:
             raise Exception("Failed to explain %s" % e)

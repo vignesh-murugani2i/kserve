@@ -25,7 +25,7 @@ def test_model():
     server.load()
 
     request = {"instances": [[5.1, 3.5, 1.4, 0.2]]}
-    response = server.predict(request)
+    response, response_headers = server.predict(request)
     expect_result = [{'Species': 'setosa',
                       'Probability_setosa': 1.0,
                       'Probability_versicolor': 0.0,
@@ -42,7 +42,7 @@ def test_model_v2():
     infer_input = InferInput(name="input-0", shape=[1, 4], datatype="FP32",
                              data=[[5.1, 3.5, 1.4, 0.2]])
     request = InferRequest(model_name="model", infer_inputs=[infer_input])
-    response = server.predict(request)
+    response,response_headers = server.predict(request)
     expect_result = [
         {'name': 'Species', 'shape': [1], 'datatype': 'BYTES', 'data': ['setosa']},
         {'name': 'Probability_setosa', 'shape': [1], 'datatype': 'FP64', 'data': [1.0]},

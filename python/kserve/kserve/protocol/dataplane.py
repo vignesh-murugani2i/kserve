@@ -266,7 +266,10 @@ class DataPlane:
         return decoded_body, attributes
 
     def encode(self, model_name, response, headers, req_attributes: Dict) -> Tuple[Dict, Dict[str, str]]:
-        response_headers = {}
+        response_headers = headers
+        if not headers:
+            response_headers = {}
+
         # if we received a cloudevent, then also return a cloudevent
         is_cloudevent = False
         is_binary_cloudevent = False

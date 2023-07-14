@@ -46,7 +46,7 @@ def test_model():
     def test_img(filename: str, expected: int):
         img = cv2.imread(os.path.join(model_dir, filename))
         request = {"instances": face_detect_preprocess(img)}
-        response = server.predict(request)
+        response, response_headers = server.predict(request)
         faces = response["predictions"]
         assert sum(face[1] > 0.5 for face in faces) == expected
 

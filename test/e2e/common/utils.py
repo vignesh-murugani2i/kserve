@@ -61,18 +61,18 @@ def grpc_stub(service_name, namespace):
 
 
 def predict(service_name, input_json, protocol_version="v1",
-            version=constants.KSERVE_V1BETA1_VERSION, model_name=None):
+            version=constants.KSERVE_V1BETA1_VERSION, model_name=None, return_response_headers=False):
     with open(input_json) as json_file:
         data = json.load(json_file)
 
-        return predict_str(service_name=service_name,
+        return predict_str(return_response_headers, service_name=service_name,
                            input_json=json.dumps(data),
                            protocol_version=protocol_version,
                            version=version,
-                           model_name=model_name)
+                           model_name=model_name, )
 
 
-def predict_str(service_name, input_json, protocol_version="v1",
+def predict_str(return_response_headers, service_name, input_json, protocol_version="v1",
                 version=constants.KSERVE_V1BETA1_VERSION, model_name=None):
     kfs_client = KServeClient(
         config_file=os.environ.get("KUBECONFIG", "~/.kube/config"))
@@ -97,9 +97,12 @@ def predict_str(service_name, input_json, protocol_version="v1",
     logging.info("Sending url = %s", url)
     logging.info("Sending request data: %s", input_json)
     response = requests.post(url, input_json, headers=headers)
-    logging.info("Got response code %s, content %s", response.status_code, response.content)
+    logging.info("Got response code %s, content %s",
+                 response.status_code, response.content)
     if response.status_code == 200:
         preds = json.loads(response.content.decode("utf-8"))
+        if return_response_headers:
+            return preds, response.headers
         return preds
     else:
         response.raise_for_status()
@@ -126,7 +129,8 @@ def predict_ig(ig_name, input_json, protocol_version="v1",
         logging.info("Sending url = %s", url)
         logging.info("Sending request data: %s", input_json)
         response = requests.post(url, data, headers=headers)
-        logging.info("Got response code %s, content %s", response.status_code, response.content)
+        logging.info("Got response code %s, content %s",
+                     response.status_code, response.content)
         if response.status_code == 200:
             preds = json.loads(response.content.decode("utf-8"))
             return preds
@@ -134,8 +138,13 @@ def predict_ig(ig_name, input_json, protocol_version="v1",
             response.raise_for_status()
 
 
-def explain(service_name, input_json):
-    return explain_response(service_name, input_json)["data"]["precision"]
+def explain(service_name, input_json, return_response_headers=False):
+
+    if return_response_headers:
+        return explain_response(service_name, input_json, return_response_headers)
+    else:
+        return explain_response(service_name, input_json, return_response_headers)["data"]["precision"]
+    
 
 
 def explain_art(service_name, input_json):
@@ -143,7 +152,7 @@ def explain_art(service_name, input_json):
         service_name, input_json)["explanations"]["adversarial_prediction"]
 
 
-def explain_response(service_name, input_json):
+def explain_response(service_name, input_json, return_response_headers):
     kfs_client = KServeClient(
         config_file=os.environ.get("KUBECONFIG", "~/.kube/config"))
     isvc = kfs_client.get(
@@ -168,6 +177,8 @@ def explain_response(service_name, input_json):
             )
             if response.status_code == 200:
                 json_response = json.loads(response.content.decode("utf-8"))
+                if return_response_headers:
+                    return json_response, response.headers
             else:
                 response.raise_for_status()
         except (RuntimeError, json.decoder.JSONDecodeError) as e:

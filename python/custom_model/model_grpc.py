@@ -57,6 +57,7 @@ class AlexNetModel(Model):
             return torch.Tensor(np_array)
 
     def predict(self, input_tensor: torch.Tensor, headers: Dict[str, str] = None) -> Dict:
+        response_headers = {}
         output = self.model(input_tensor)
         torch.nn.functional.softmax(output, dim=1)
         values, top_5 = torch.topk(output, 5)
@@ -75,7 +76,7 @@ class AlexNetModel(Model):
                     "shape": list(values.shape)
                 }
             ]}
-        return response
+        return response, response_headers
 
 
 if __name__ == "__main__":

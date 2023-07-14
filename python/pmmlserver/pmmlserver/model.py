@@ -60,10 +60,11 @@ class PmmlModel(Model):
         return self.ready
 
     def predict(self, payload: Union[Dict, InferRequest], headers: Dict[str, str] = None) -> Union[Dict, InferResponse]:
+        response_headers = {}
         try:
             instances = get_predict_input(payload)
             results = [self.evaluator.evaluate(
                 dict(zip(self.input_fields, instance))) for instance in instances]
-            return get_predict_response(payload, pd.DataFrame(results), self.name)
+            return get_predict_response(payload, pd.DataFrame(results), self.name), response_headers
         except Exception as e:
             raise InferenceError(str(e))

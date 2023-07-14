@@ -58,11 +58,12 @@ class XGBoostModel(Model):
         return self.ready
 
     def predict(self, payload: Union[Dict, InferRequest], headers: Dict[str, str] = None) -> Union[Dict, InferResponse]:
+        response_headers = {}
         try:
             # Use of list as input is deprecated see https://github.com/dmlc/xgboost/pull/3970
             instances = get_predict_input(payload)
             dmatrix = xgb.DMatrix(instances, nthread=self.nthread)
             result = self._booster.predict(dmatrix)
-            return get_predict_response(payload, result, self.name)
+            return get_predict_response(payload, result, self.name), response_headers
         except Exception as e:
             raise InferenceError(str(e))

@@ -39,5 +39,5 @@ def test_model():
     model = XGBoostModel("model", model_dir, NTHREAD)
     model.load()
     request = [X[0].tolist()]
-    response = model.predict({"instances": request})
+    response, response_headers = model.predict({"instances": request})
     assert response["predictions"] == [0]

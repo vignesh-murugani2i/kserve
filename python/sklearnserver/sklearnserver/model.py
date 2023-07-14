@@ -52,6 +52,7 @@ class SKLearnModel(Model):  # pylint:disable=c-extension-no-member
         return self.ready
 
     def predict(self, payload: Union[Dict, InferRequest], headers: Dict[str, str] = None) -> Union[Dict, InferResponse]:
+        response_headers = {'my-header':'sample'}
         try:
             instances = get_predict_input(payload)
             if os.environ.get(ENV_PREDICT_PROBA, "false").lower() == "true" and \
@@ -59,6 +60,6 @@ class SKLearnModel(Model):  # pylint:disable=c-extension-no-member
                 result = self._model.predict_proba(instances)
             else:
                 result = self._model.predict(instances)
-            return get_predict_response(payload, result, self.name)
+            return get_predict_response(payload, result, self.name),response_headers
         except Exception as e:
             raise InferenceError(str(e))
