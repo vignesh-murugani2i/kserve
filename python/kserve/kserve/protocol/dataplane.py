@@ -320,12 +320,12 @@ class DataPlane:
         # call model locally or remote model workers
         model = self.get_model(model_name)
         if isinstance(model, RayServeSyncHandle):
-            response = ray.get(model.remote(request, headers=headers))
+            response, response_headers = ray.get(model.remote(request, headers=headers))
         elif isinstance(model, (RayServeHandle, DeploymentHandle)):
-            response = await model.remote(request, headers=headers)
+            response, response_headers = await model.remote(request, headers=headers)
         else:
-            response = await model(request, headers=headers)
-        return response, headers
+            response, response_headers = await model(request, headers=headers)
+        return response, response_headers
 
     async def generate(
             self,
@@ -371,9 +371,9 @@ class DataPlane:
         # call model locally or remote model workers
         model = self.get_model(model_name)
         if isinstance(model, RayServeSyncHandle):
-            response = ray.get(model.remote(request, verb=InferenceVerb.EXPLAIN))
+            response, response_headers = ray.get(model.remote(request, verb=InferenceVerb.EXPLAIN))
         elif isinstance(model, (RayServeHandle, DeploymentHandle)):
-            response = await model.remote(request, verb=InferenceVerb.EXPLAIN)
+            response, response_headers = await model.remote(request, verb=InferenceVerb.EXPLAIN)
         else:
-            response = await model(request, verb=InferenceVerb.EXPLAIN)
-        return response, headers
+            response, response_headers = await model(request, verb=InferenceVerb.EXPLAIN)
+        return response, response_headers

@@ -28,5 +28,5 @@ class Predictor:  # pylint:disable=too-few-public-methods
                 instances.append(req_data.tolist())
             else:
                 instances.append(req_data)
-        resp = self.clf.predict({"instances": instances})
+        resp, response_headers = self.clf.predict({"instances": instances})
         return np.array(resp["predictions"])

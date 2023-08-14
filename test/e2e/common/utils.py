@@ -65,15 +65,15 @@ def predict(service_name, input_json, protocol_version="v1",
     with open(input_json) as json_file:
         data = json.load(json_file)
 
-        return predict_str(return_response_headers, service_name=service_name,
+        return predict_str(service_name=service_name,
                            input_json=json.dumps(data),
                            protocol_version=protocol_version,
                            version=version,
-                           model_name=model_name, )
+                           model_name=model_name, return_response_headers=return_response_headers)
 
 
-def predict_str(return_response_headers, service_name, input_json, protocol_version="v1",
-                version=constants.KSERVE_V1BETA1_VERSION, model_name=None):
+def predict_str(service_name, input_json, protocol_version="v1",
+                version=constants.KSERVE_V1BETA1_VERSION, model_name=None, return_response_headers=False):
     kfs_client = KServeClient(
         config_file=os.environ.get("KUBECONFIG", "~/.kube/config"))
     isvc = kfs_client.get(
@@ -144,12 +144,11 @@ def explain(service_name, input_json, return_response_headers=False):
         return explain_response(service_name, input_json, return_response_headers)
     else:
         return explain_response(service_name, input_json, return_response_headers)["data"]["precision"]
-    
 
 
-def explain_art(service_name, input_json):
+def explain_art(service_name, input_json, return_response_headers=False):
     return explain_response(
-        service_name, input_json)["explanations"]["adversarial_prediction"]
+        service_name, input_json, return_response_headers)["explanations"]["adversarial_prediction"]
 
 
 def explain_response(service_name, input_json, return_response_headers):

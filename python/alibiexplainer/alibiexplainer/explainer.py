@@ -72,11 +72,12 @@ class AlibiExplainer(kserve.Model):
             else:
                 instances.append(req_data)
         loop = asyncio.get_running_loop()  # type: ignore
-        resp, response_headers = loop.run_until_complete(self.predict({"instances": instances})) 
+        resp, response_headers = loop.run_until_complete(
+            self.predict({"instances": instances}))
         return np.array(resp["predictions"])
 
     def explain(self, payload: Dict, headers: Dict[str, str] = None) -> Any:
-        response_headers = {'my-header':'sample'}
+        response_headers = {'my-header': 'sample'}
         if (
                 self.method is ExplainerMethod.anchor_tabular
                 or self.method is ExplainerMethod.anchor_images
@@ -85,6 +86,6 @@ class AlibiExplainer(kserve.Model):
             explanation = self.wrapper.explain(payload["instances"])
             explanationAsJsonStr = explanation.to_json()
             logging.info("Explanation: %s", explanationAsJsonStr)
-            return json.loads(explanationAsJsonStr),response_headers
+            return json.loads(explanationAsJsonStr), response_headers
 
         raise NotImplementedError

@@ -15,7 +15,7 @@
 import inspect
 import time
 from enum import Enum
-from typing import Dict, List, Union, Optional, AsyncIterator, Any
+from typing import Dict, List, Tuple, Union, Optional, AsyncIterator, Any
 
 import grpc
 import httpx
@@ -135,14 +135,18 @@ class Model:
         if verb == InferenceVerb.EXPLAIN:
             with EXPLAIN_HIST_TIME.labels(**prom_labels).time():
                 start = time.time()
-                response, response_headers = (await self.explain(payload, headers)) if inspect.iscoroutinefunction(self.explain) \
-                    else self.explain(payload, headers)
+                if inspect.iscoroutinefunction(self.explain):
+                    response, response_headers = (await self.explain(payload, headers))
+                else:
+                    response, response_headers = self.explain(payload, headers)
                 explain_ms = get_latency_ms(start, time.time())
         elif verb == InferenceVerb.PREDICT:
             with PREDICT_HIST_TIME.labels(**prom_labels).time():
                 start = time.time()
-                response, response_headers = (await self.predict(payload, headers)) if inspect.iscoroutinefunction(self.predict) \
-                    else self.predict(payload, headers)
+                if inspect.iscoroutinefunction(self.predict):
+                    response, response_headers = (await self.predict(payload, headers))
+                else:
+                    response, response_headers = self.predict(payload, headers)
                 predict_ms = get_latency_ms(start, time.time())
         else:
             raise NotImplementedError
@@ -293,6 +297,7 @@ class Model:
 
     async def _grpc_predict(self, payload: Union[ModelInferRequest, InferRequest], headers: Dict[str, str] = None) \
             -> ModelInferResponse:
+        response_headers = {}
         if isinstance(payload, InferRequest):
             payload = payload.to_grpc()
         async_result = await self._grpc_client.ModelInfer(
@@ -302,12 +307,11 @@ class Model:
                       ('response_type', 'grpc_v2'),
                       ('x-request-id', headers.get('x-request-id', '')))
         )
-        return async_result
+        return async_result, response_headers
 
     async def predict(self, payload: Union[Dict, InferRequest, ModelInferRequest],
-                      headers: Dict[str, str] = None) -> Union[Dict, InferResponse]:
-        """ The `predict` handler can be overridden for performing the inference.
-            By default, the predict handler makes call to predictor for the inference step.
+                      headers: Dict[str, str] = None) -> Tuple[Union[Dict, InferResponse], Dict]:
+        """
 
         Args:
             payload: Model inputs passed from `preprocess` handler.
@@ -322,8 +326,8 @@ class Model:
         if not self.predictor_host:
             raise NotImplementedError("Could not find predictor_host.")
         if self.protocol == PredictorProtocol.GRPC_V2.value:
-            response_content = await self._grpc_predict(payload, headers)
-            return InferResponse.from_grpc(response_content)
+            response_content, response_headers = await self._grpc_predict(payload, headers)
+            return InferResponse.from_grpc(response_content), response_headers
         else:
             response_content, response_headers = await self._http_predict(payload, headers)
             response_headers = {}

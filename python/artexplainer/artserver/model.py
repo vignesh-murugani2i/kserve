@@ -75,7 +75,9 @@ class ARTModel(kserve.Model):  # pylint:disable=c-extension-no-member
                 adv_preds = np.argmax(classifier.predict(x_adv))
                 l2_error = np.linalg.norm(np.reshape(x_adv[0] - inputs, [-1]))
 
-                return {"explanations": {"adversarial_example": x_adv.tolist(), "L2 error": l2_error.tolist(),
-                                         "adversarial_prediction": adv_preds.tolist(), "prediction": preds.tolist()}}, response_headers
+                return (
+                    {"explanations": {"adversarial_example": x_adv.tolist(), "L2 error": l2_error.tolist(),
+                                      "adversarial_prediction": adv_preds.tolist(), "prediction": preds.tolist()}},
+                    response_headers)
         except Exception as e:
             raise Exception("Failed to explain %s" % e)

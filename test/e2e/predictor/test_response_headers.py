@@ -1,10 +1,9 @@
-import json
 import logging
 import os
 
 import pytest
 from kubernetes import client
-from kubernetes.client import V1ContainerPort, V1ResourceRequirements
+from kubernetes.client import V1ResourceRequirements
 
 from kserve import (KServeClient, V1beta1InferenceService,
                     V1beta1InferenceServiceSpec, V1beta1ModelFormat,
@@ -26,7 +25,7 @@ def test_predictor_response_headers():
                 name="sklearn",
             ),
             runtime="kserve-sklearnserver",
-            image="msvignesh29/sklearn-headers",
+            image="andyi2it/sklearn-headers:latest",
             storage_uri="gs://seldon-models/sklearn/mms/lr_model",
             resources=V1ResourceRequirements(
                 requests={"cpu": "50m", "memory": "128Mi"},
@@ -53,7 +52,7 @@ def test_predictor_response_headers():
     response_content, response_headers = predict(
         service_name, "./data/iris_input_v2.json", protocol_version="v2", return_response_headers=True)
 
-    assert response_headers.get("my-header", None) != None
+    assert "my-header" in response_headers
     assert response_headers["my-header"] == "sample"
     assert response_content["outputs"][0]["data"] == [1, 1]
 
@@ -65,7 +64,7 @@ def test_explainer_response_headers():
     service_name = 'isvc-explainer-tabular'
     predictor = V1beta1PredictorSpec(
         sklearn=V1beta1SKLearnSpec(
-            image="msvignesh29/sklearn-headers",
+            image="andyi2it/sklearn-headers:latest",
             storage_uri='gs://kfserving-examples/models/sklearn/1.3/income/model',
             resources=V1ResourceRequirements(
                 requests={'cpu': '100m', 'memory': '256Mi'},
@@ -76,7 +75,7 @@ def test_explainer_response_headers():
     explainer = V1beta1ExplainerSpec(
         min_replicas=1,
         alibi=V1beta1AlibiExplainerSpec(
-            image="msvignesh29/alibiexplainer-headers",
+            image="andyi2it/alibiexplainer-headers:latest",
             name='kserve-container',
             type='AnchorTabular',
             storage_uri='gs://kfserving-examples/models/sklearn/1.3/income/explainer',
@@ -114,7 +113,7 @@ def test_explainer_response_headers():
     assert (response_content["predictions"] == [0])
     precision, response_headers = explain(
         service_name, './data/income_input.json', return_response_headers=True)
-    assert response_headers.get("my-header", None) != None
+    assert "my-header" in response_headers
     assert response_headers["my-header"] == "sample"
     assert (precision["data"]["precision"] > 0.9)
     kserve_client.delete(service_name, KSERVE_TEST_NAMESPACE)
