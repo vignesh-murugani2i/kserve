@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: []
   workflow_dispatch:
-  
+
 jobs:
   flake8-lint:
     runs-on: ubuntu-latest
@@ -32,6 +32,15 @@ jobs:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11"]
     steps:
+      - name: Check if this is the latest commit
+        id: latest-commit
+        run: |
+          LATEST_COMMIT_SHA=$(git log -1 --format="%H")
+          if [ "$LATEST_COMMIT_SHA" != "${{ github.sha }}" ]; then
+            echo "This is not the latest commit. Stopping the workflow."
+            exit 78 # Exit with a neutral status code to stop the workflow
+          fi
+
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
         id: setup-python
