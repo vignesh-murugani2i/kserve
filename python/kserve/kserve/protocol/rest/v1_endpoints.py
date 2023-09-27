@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 from typing import Optional, Union, Dict, List
 
 from fastapi import Request, Response
@@ -80,6 +81,7 @@ class V1Endpoints:
                                                            response=response,
                                                            headers=headers, req_attributes=req_attributes)
 
+        logging.info("predict response")
         if not isinstance(response, dict):
             return Response(content=response, headers=response_headers)
         return response
