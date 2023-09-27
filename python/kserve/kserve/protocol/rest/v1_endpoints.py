@@ -81,7 +81,7 @@ class V1Endpoints:
                                                            response=response,
                                                            headers=headers, req_attributes=req_attributes)
 
-        logging.info("predict response new")
+        logging.info("predict response")
         if not isinstance(response, dict):
             return Response(content=response, headers=response_headers)
         return response
