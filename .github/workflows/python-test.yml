@@ -7,8 +7,9 @@ on:
     branches: []
   workflow_dispatch:
 
+# REF: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
