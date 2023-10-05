@@ -233,7 +233,6 @@ class Model:
 
         # Adjusting headers. Inject content type if not exist.
         # Also, removing host, as the header is the one passed to transformer and contains transformer's host
-        # aaa
         predict_headers = {'Content-Type': 'application/json'}
         if headers is not None:
             if 'x-request-id' in headers:
