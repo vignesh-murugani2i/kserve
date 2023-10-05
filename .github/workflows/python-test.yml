@@ -7,6 +7,10 @@ on:
     branches: []
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   flake8-lint:
     runs-on: ubuntu-latest
@@ -15,12 +19,12 @@ jobs:
         python-version: ["3.8", "3.9", "3.10", "3.11"]
     name: Lint
     steps:
-      - name: Skip Duplicate Actions
-        uses: fkirc/skip-duplicate-actions@v5.3.0
-        with:
-          # All of these options are optional, so you can remove them if you are happy with the defaults
-          concurrent_skipping: 'always'
-            
+      # - name: Skip Duplicate Actions
+      #   uses: fkirc/skip-duplicate-actions@v5.3.0
+      #   with:
+      #     # All of these options are optional, so you can remove them if you are happy with the defaults
+      #     concurrent_skipping: 'always'
+
       - name: Check out source repository
         uses: actions/checkout@v2
       - name: Set up Python environment ${{ matrix.python-version }}
@@ -42,7 +46,7 @@ jobs:
         uses: fkirc/skip-duplicate-actions@v5.3.0
         with:
           # All of these options are optional, so you can remove them if you are happy with the defaults
-          concurrent_skipping: 'always'
+          concurrent_skipping: "always"
           # kkk
 
       - uses: actions/checkout@v2
