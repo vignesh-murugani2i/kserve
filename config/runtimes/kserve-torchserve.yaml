@@ -17,7 +17,7 @@ spec:
     - grpc-v2
   containers:
     - name: kserve-container
-      image: kserve-torchserve:replace
+      image: pytorch/torchserve-kfs-nightly:latest-cpu
       args:
         - torchserve
         - --start
@@ -26,8 +26,6 @@ spec:
       env:
         - name: "TS_SERVICE_ENVELOPE"
           value: "{{.Labels.serviceEnvelope}}"
-        - name: "PROTOCOL_VERSION"
-          value: "{{.Labels.iscvProtocol}}"
       resources:
         requests:
           cpu: "1"
