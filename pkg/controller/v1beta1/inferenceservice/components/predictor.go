@@ -92,6 +92,19 @@ func (p *Predictor) Reconcile(isvc *v1beta1.InferenceService) (ctrl.Result, erro
 
 	predictor := isvc.Spec.Predictor.GetImplementation()
 
+	// Set Triton server runtime's protocol version
+	runtimes := &v1alpha1.ServingRuntimeList{}
+	clusterRuntimes := &v1alpha1.ClusterServingRuntimeList{}
+	if err := p.client.List(context.TODO(), runtimes, client.InNamespace(isvc.Namespace)); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := p.client.List(context.TODO(), clusterRuntimes); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	isvc.SetTritonDefaultProtocolVersion(p.client, isvc.Namespace, runtimes, clusterRuntimes)
+
 	// If Model is specified, prioritize using that. Otherwise, we will assume a framework object was specified.
 	if isvc.Spec.Predictor.Model != nil {
 		var sRuntime v1alpha1.ServingRuntimeSpec
