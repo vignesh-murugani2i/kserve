@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/kserve/kserve/pkg/apis/serving/v1alpha1"
 	"github.com/kserve/kserve/pkg/constants"
 	"github.com/kserve/kserve/pkg/utils"
 	v1 "k8s.io/api/core/v1"
@@ -95,6 +96,7 @@ func (isvc *InferenceService) DefaultInferenceService(config *InferenceServicesC
 	components := []Component{isvc.Spec.Transformer, isvc.Spec.Explainer}
 	if !ok || deploymentMode != string(constants.ModelMeshDeployment) {
 		// Only attempt to assign runtimes and apply defaulting logic for non-modelmesh predictors
+		logf.Log.Info("******************************************")
 		isvc.setPredictorModelDefaults()
 		components = append(components, &isvc.Spec.Predictor)
 	} else {
@@ -117,6 +119,7 @@ func (isvc *InferenceService) DefaultInferenceService(config *InferenceServicesC
 }
 
 func (isvc *InferenceService) setPredictorModelDefaults() {
+	logf.Log.Info("Come to setPredictorModelDefaults ******************")
 	switch {
 	case isvc.Spec.Predictor.SKLearn != nil:
 		isvc.assignSKLearnRuntime()
@@ -147,6 +150,9 @@ func (isvc *InferenceService) setPredictorModelDefaults() {
 	}
 
 	if isvc.Spec.Predictor.Model != nil && isvc.Spec.Predictor.Model.ProtocolVersion == nil {
+		logf.Log.Info("******************^^^^^^^^^^^^^^^^^^^^^^***********************")
+		logf.Log.Info("###################", "ModelName", isvc.Spec.Predictor.Model.ModelFormat.Name)
+		logf.Log.Info("###################", "Runtime", isvc.Spec.Predictor.Model.Runtime)
 		if isvc.Spec.Predictor.Model.ModelFormat.Name == constants.SupportedModelTriton {
 			// set 'v2' as default protocol version for triton server
 			protocolV2 := constants.ProtocolV2
@@ -206,6 +212,7 @@ func (isvc *InferenceService) assignTritonRuntime() {
 }
 
 func (isvc *InferenceService) assignONNXRuntime() {
+	logf.Log.Info("Come to onnx ******************")
 	// assign protocol version 'v2' if not provided for backward compatibility
 	if isvc.Spec.Predictor.ONNX.ProtocolVersion == nil {
 		protocolV2 := constants.ProtocolV2
@@ -315,7 +322,7 @@ func (isvc *InferenceService) SetTorchServeDefaults() {
 	} else {
 		isvc.ObjectMeta.Labels[constants.ServiceEnvelope] = constants.ServiceEnvelopeKServe
 	}
-	if constants.ProtocolV2 == *isvc.Spec.Predictor.Model.ProtocolVersion {
+	if (constants.ProtocolV2 == *isvc.Spec.Predictor.Model.ProtocolVersion) || (constants.ProtocolGRPCV2 == *isvc.Spec.Predictor.Model.ProtocolVersion) {
 		isvc.ObjectMeta.Labels[constants.ServiceEnvelope] = constants.ServiceEnvelopeKServeV2
 	}
 
@@ -337,5 +344,36 @@ func (isvc *InferenceService) SetTritonDefaults() {
 	if isvc.Spec.Predictor.Model.StorageURI == nil && isvc.Spec.Predictor.Model.Storage == nil {
 		isvc.Spec.Predictor.Model.Args = append(isvc.Spec.Predictor.Model.Args,
 			fmt.Sprintf("%s=%s", "--model-control-mode", "explicit"))
+	}
+}
+
+func (isvc *InferenceService) SetTritonDefaultProtocolVersion(cl client.Client, nameSp string,
+	runtimes *v1alpha1.ServingRuntimeList, clusterRuntimes *v1alpha1.ClusterServingRuntimeList) {
+	isProtocolVersionSet := false
+	for i := range runtimes.Items {
+		rt := &runtimes.Items[i]
+		if rt.Name == "kserve-tritonserver" && isvc.Spec.Predictor.Model.RuntimeSupportsModel(&rt.Spec) {
+			if isvc.Spec.Predictor.Model != nil && isvc.Spec.Predictor.Model.ProtocolVersion == nil {
+				// set 'v2' as default protocol version for triton server
+				protocolV2 := constants.ProtocolV2
+				isvc.Spec.Predictor.Model.ProtocolVersion = &protocolV2
+				isProtocolVersionSet = true
+				logf.Log.Info("SetTritonDefaultProtocolVersion", "runtimes", protocolV2)
+			}
+		}
+	}
+
+	if !isProtocolVersionSet {
+		for i := range clusterRuntimes.Items {
+			crt := &clusterRuntimes.Items[i]
+			if crt.Name == "kserve-tritonserver" && isvc.Spec.Predictor.Model.RuntimeSupportsModel(&crt.Spec) {
+				if isvc.Spec.Predictor.Model != nil && isvc.Spec.Predictor.Model.ProtocolVersion == nil {
+					// set 'v2' as default protocol version for triton server
+					protocolV2 := constants.ProtocolV2
+					isvc.Spec.Predictor.Model.ProtocolVersion = &protocolV2
+					logf.Log.Info("SetTritonDefaultProtocolVersion", "clusterRuntimes", protocolV2)
+				}
+			}
+		}
 	}
 }

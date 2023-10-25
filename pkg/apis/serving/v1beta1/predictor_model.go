@@ -25,7 +25,10 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+var log = logf.Log.WithName(constants.ServingRuntimeValidatorWebhookName)
 
 type ModelFormat struct {
 	// Name of the model format.
@@ -64,6 +67,7 @@ func (m *ModelSpec) GetContainer(metadata metav1.ObjectMeta, extensions *Compone
 }
 
 func (m *ModelSpec) GetProtocol() constants.InferenceServiceProtocol {
+	log.Info("m.ProtocolVersion", "m.ProtocolVersion", m.ProtocolVersion)
 	if m.ProtocolVersion != nil {
 		return *m.ProtocolVersion
 	}
@@ -115,6 +119,8 @@ func (m *ModelSpec) GetSupportingRuntimes(cl client.Client, namespace string, is
 	sortSupportedRuntimeByPriority(srSpecs, m.ModelFormat)
 	for i := range clusterRuntimes.Items {
 		crt := &clusterRuntimes.Items[i]
+		log.Info("model name ########", "name", crt.Name)
+		log.Info("modelProtocolVersion", "********************", modelProtocolVersion)
 		if !crt.Spec.IsDisabled() && crt.Spec.IsMultiModelRuntime() == isMMS &&
 			m.RuntimeSupportsModel(&crt.Spec) && crt.Spec.IsProtocolVersionSupported(modelProtocolVersion) {
 			clusterSrSpecs = append(clusterSrSpecs, v1alpha1.SupportedRuntime{Name: crt.GetName(), Spec: crt.Spec})
