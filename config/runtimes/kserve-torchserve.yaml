@@ -17,7 +17,7 @@ spec:
     - grpc-v2
   containers:
     - name: kserve-container
-      image: pytorch/torchserve-kfs-nightly:latest-cpu
+      image: torchserve-grpc-v2:replace
       args:
         - torchserve
         - --start
