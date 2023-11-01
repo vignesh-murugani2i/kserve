@@ -4,7 +4,7 @@ metadata:
   name: kserve-torchserve
 spec:
   annotations:
-    prometheus.kserve.io/port: '8082'
+    prometheus.kserve.io/port: "8082"
     prometheus.kserve.io/path: "/metrics"
   supportedModelFormats:
     - name: pytorch
@@ -17,7 +17,7 @@ spec:
     - grpc-v2
   containers:
     - name: kserve-container
-      image: pytorch/torchserve-kfs-nightly:latest-cpu
+      image: kserve-torchserve:replace
       args:
         - torchserve
         - --start

@@ -38,7 +38,6 @@ def test_torchserve_kserve():
     predictor = V1beta1PredictorSpec(
         min_replicas=1,
         pytorch=V1beta1TorchServeSpec(
-            image="pytorch/torchserve-kfs-nightly:latest-cpu",
             storage_uri="gs://kfserving-examples/models/torchserve/image_classifier/v1",
             protocol_version="v1",
             resources=V1ResourceRequirements(
@@ -72,7 +71,6 @@ def test_torchserve_v2_kserve():
     predictor = V1beta1PredictorSpec(
         min_replicas=1,
         pytorch=V1beta1TorchServeSpec(
-            image="pytorch/torchserve-kfs-nightly:latest-cpu",
             storage_uri="gs://kfserving-examples/models/torchserve/image_classifier/v2",
             protocol_version="v2",
             resources=V1ResourceRequirements(
@@ -106,7 +104,6 @@ def test_torchserve_grpc_v2():
     model_name = "mnist"
     predictor = V1beta1PredictorSpec(
         pytorch=V1beta1TorchServeSpec(
-            image="pytorch/torchserve-kfs-nightly:latest-cpu",
             storage_uri="gs://kfserving-examples/models/torchserve/image_classifier/v2",
             protocol_version="grpc-v2",
             resources=V1ResourceRequirements(
