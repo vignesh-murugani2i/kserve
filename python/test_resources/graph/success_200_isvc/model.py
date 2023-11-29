@@ -32,7 +32,8 @@ class SampleTemplateNode(kserve.Model):
         self.ready = True
 
     def predict(self, payload: Union[Dict, InferRequest, ModelInferRequest], headers) -> Dict:
-        return {"message": "SUCCESS"}
+        response_headers = {}
+        return {"message": "SUCCESS"}, response_headers
 
 
 parser = argparse.ArgumentParser(parents=[kserve.model_server.parser])

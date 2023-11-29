@@ -196,6 +196,7 @@ class HuggingfaceModel(Model):  # pylint:disable=c-extension-no-member
 
     async def predict(self, input_batch: Union[BatchEncoding, InferRequest], context: Dict[str, Any] = None) \
             -> Union[Tensor, InferResponse]:
+        response_headers = {}
         if self.predictor_host:
             # when predictor_host is provided, serialize the tensor and send to optimized model serving runtime
             # like NVIDIA triton inference server
@@ -208,7 +209,7 @@ class HuggingfaceModel(Model):  # pylint:disable=c-extension-no-member
                         outputs = self.model.generate(**input_batch)
                     else:
                         outputs = self.model(**input_batch).logits
-                    return outputs
+                    return outputs, response_headers
             except Exception as e:
                 raise InferenceError(str(e))
 

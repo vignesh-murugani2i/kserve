@@ -333,6 +333,7 @@ class TestV2Endpoints:
 
         input_data = json.dumps(req.to_rest()).encode('utf-8')
         with patch.object(DummyModel, 'predict', new_callable=mock.Mock) as mock_predict:
+            response_headers = {}
             mock_predict.return_value = InferResponse(model_name="TestModel", response_id="123",
                                                       parameters={
                                                           "test-str": "dummy",
@@ -347,7 +348,7 @@ class TestV2Endpoints:
                                                                           "test-str": "dummy",
                                                                           "test-bool": True,
                                                                           "test-int": 100
-                                                                      })])
+                                                                      })]), response_headers
             resp = http_server_client.post('/v2/models/TestModel/infer', content=input_data)
             mock_predict.assert_called_with(req, mock.ANY)
 
