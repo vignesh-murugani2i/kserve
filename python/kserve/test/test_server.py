@@ -79,15 +79,17 @@ class DummyModel(Model):
         self.ready = True
 
     async def predict(self, request, headers=None):
+        response_headers = {}
         if isinstance(request, InferRequest):
             inputs = get_predict_input(request)
             infer_response = get_predict_response(request, inputs, self.name)
-            return infer_response
+            return infer_response, response_headers
         else:
-            return {"predictions": request["instances"]}
+            return {"predictions": request["instances"]}, response_headers
 
     async def explain(self, request, headers=None):
-        return {"predictions": request["instances"]}
+        response_headers = {}
+        return {"predictions": request["instances"]}, response_headers
 
 
 @serve.deployment
@@ -101,15 +103,17 @@ class DummyServeModel(Model):
         self.ready = True
 
     async def predict(self, request, headers=None):
+        response_headers = {}
         if isinstance(request, InferRequest):
             inputs = get_predict_input(request)
             infer_response = get_predict_response(request, inputs, self.name)
-            return infer_response
+            return infer_response, response_headers
         else:
-            return {"predictions": request["instances"]}
+            return {"predictions": request["instances"]}, response_headers
 
     async def explain(self, request, headers=None):
-        return {"predictions": request["instances"]}
+        response_headers = {}
+        return {"predictions": request["instances"]}, response_headers
 
 
 class DummyCEModel(Model):
@@ -122,10 +126,12 @@ class DummyCEModel(Model):
         self.ready = True
 
     async def predict(self, request, headers=None):
-        return {"predictions": request["instances"]}
+        response_headers = headers
+        return {"predictions": request["instances"]}, response_headers
 
     async def explain(self, request, headers=None):
-        return {"predictions": request["instances"]}
+        response_headers = headers
+        return {"predictions": request["instances"]}, response_headers
 
 
 class DummyAvroCEModel(Model):
@@ -154,12 +160,18 @@ class DummyAvroCEModel(Model):
         return self._parserequest(request)
 
     async def predict(self, request, headers=None):
-        return {"predictions": [[request['name'], request['favorite_number'],
-                                 request['favorite_color']]]}
+        response_headers = headers
+        return (
+            {"predictions": [
+                [request['name'], request['favorite_number'], request['favorite_color']]]},
+            response_headers)
 
     async def explain(self, request, headers=None):
-        return {"predictions": [[request['name'], request['favorite_number'],
-                                 request['favorite_color']]]}
+        response_headers = headers
+        return (
+            {"predictions": [
+                [request['name'], request['favorite_number'], request['favorite_color']]]},
+            response_headers)
 
 
 class DummyModelRepository(ModelRepository):
@@ -214,7 +226,8 @@ class TestV1Endpoints:
         model.load()
         server = ModelServer()
         server.register_model(model)
-        rest_server = RESTServer(server.dataplane, server.model_repository_extension)
+        rest_server = RESTServer(
+            server.dataplane, server.model_repository_extension)
         return rest_server.create_application()
 
     @pytest.fixture(scope="class")
@@ -233,7 +246,8 @@ class TestV1Endpoints:
     def test_unknown_model_v1(self, http_server_client):
         resp = http_server_client.get('/v1/models/InvalidModel')
         assert resp.status_code == 404
-        assert resp.json() == {"error": "Model with name InvalidModel does not exist."}
+        assert resp.json() == {
+            "error": "Model with name InvalidModel does not exist."}
 
     def test_list_models_v1(self, http_server_client):
         resp = http_server_client.get('/v1/models')
@@ -319,6 +333,7 @@ class TestV2Endpoints:
 
         input_data = json.dumps(req.to_rest()).encode('utf-8')
         with patch.object(DummyModel, 'predict', new_callable=mock.Mock) as mock_predict:
+            response_headers = {}
             mock_predict.return_value = InferResponse(model_name="TestModel", response_id="123",
                                                       parameters={
                                                           "test-str": "dummy",
@@ -333,7 +348,7 @@ class TestV2Endpoints:
                                                                           "test-str": "dummy",
                                                                           "test-bool": True,
                                                                           "test-int": 100
-                                                                      })])
+                                                                      })]), response_headers
             resp = http_server_client.post('/v2/models/TestModel/infer', content=input_data)
             mock_predict.assert_called_with(req, mock.ANY)
 
@@ -356,7 +371,8 @@ class TestRayServer:
 
         server = ModelServer()
         server.register_model_handle("TestModel", handle)
-        rest_server = RESTServer(server.dataplane, server.model_repository_extension)
+        rest_server = RESTServer(
+            server.dataplane, server.model_repository_extension)
         return rest_server.create_application()
 
     @pytest.fixture(scope='class')
@@ -410,7 +426,8 @@ class TestTFHttpServerModelNotLoaded:
         model = DummyModel("TestModel")
         server = ModelServer()
         server.register_model(model)
-        rest_server = RESTServer(server.dataplane, server.model_repository_extension)
+        rest_server = RESTServer(
+            server.dataplane, server.model_repository_extension)
         return rest_server.create_application()
 
     @pytest.fixture(scope='class')
@@ -429,7 +446,8 @@ class TestTFHttpServerCloudEvent:
         model.load()
         server = ModelServer()
         server.register_model(model)
-        rest_server = RESTServer(server.dataplane, server.model_repository_extension)
+        rest_server = RESTServer(
+            server.dataplane, server.model_repository_extension)
         return rest_server.create_application()
 
     @pytest.fixture(scope='class')
@@ -472,7 +490,8 @@ class TestTFHttpServerCloudEvent:
 
     def test_predict_merge_structured_ce_attributes(self, http_server_client):
         with mock.patch.dict(os.environ, {"CE_MERGE": "true"}):
-            event = dummy_cloud_event({"instances": [[1, 2]]}, add_extension=True)
+            event = dummy_cloud_event(
+                {"instances": [[1, 2]]}, add_extension=True)
             headers, body = to_structured(event)
 
             resp = http_server_client.post('/v1/models/TestModel:predict', headers=headers, content=body)
@@ -485,12 +504,14 @@ class TestTFHttpServerCloudEvent:
             assert body["data"] == {"predictions": [[1, 2]]}
             assert body['source'] == "io.kserve.inference.TestModel"
             assert body['type'] == "io.kserve.inference.response"
-            assert body["custom-extension"] == "custom-value"  # Added by add_extension=True in dummy_cloud_event
+            # Added by add_extension=True in dummy_cloud_event
+            assert body["custom-extension"] == "custom-value"
             assert body['time'] > "2021-01-28T21:04:43.144141+00:00"
 
     def test_predict_merge_binary_ce_attributes(self, http_server_client):
         with mock.patch.dict(os.environ, {"CE_MERGE": "true"}):
-            event = dummy_cloud_event({"instances": [[1, 2]]}, set_contenttype=True, add_extension=True)
+            event = dummy_cloud_event(
+                {"instances": [[1, 2]]}, set_contenttype=True, add_extension=True)
             headers, body = to_binary(event)
 
             resp = http_server_client.post('/v1/models/TestModel:predict', headers=headers, content=body)
@@ -507,7 +528,8 @@ class TestTFHttpServerCloudEvent:
             assert resp.content == b'{"predictions": [[1, 2]]}'
 
     def test_predict_ce_binary_dict(self, http_server_client):
-        event = dummy_cloud_event({"instances": [[1, 2]]}, set_contenttype=True)
+        event = dummy_cloud_event(
+            {"instances": [[1, 2]]}, set_contenttype=True)
         headers, body = to_binary(event)
 
         resp = http_server_client.post('/v1/models/TestModel:predict', headers=headers, content=body)
@@ -522,7 +544,8 @@ class TestTFHttpServerCloudEvent:
         assert resp.content == b'{"predictions": [[1, 2]]}'
 
     def test_predict_ce_binary_bytes(self, http_server_client):
-        event = dummy_cloud_event(b'{"instances":[[1,2]]}', set_contenttype=True)
+        event = dummy_cloud_event(
+            b'{"instances":[[1,2]]}', set_contenttype=True)
         headers, body = to_binary(event)
         resp = http_server_client.post('/v1/models/TestModel:predict', headers=headers, content=body)
 
@@ -548,7 +571,8 @@ class TestTFHttpServerCloudEvent:
         assert error_regex.match(response["error"]) is not None
 
     def test_predict_ce_bytes_bad_hex_format_exception(self, http_server_client):
-        event = dummy_cloud_event(b'0\x80\x80\x06World!\x00\x00', set_contenttype=True)
+        event = dummy_cloud_event(
+            b'0\x80\x80\x06World!\x00\x00', set_contenttype=True)
         headers, body = to_binary(event)
 
         resp = http_server_client.post('/v1/models/TestModel:predict', headers=headers, content=body)
@@ -568,7 +592,8 @@ class TestTFHttpServerAvroCloudEvent:
         model.load()
         server = ModelServer()
         server.register_model(model)
-        rest_server = RESTServer(server.dataplane, server.model_repository_extension)
+        rest_server = RESTServer(
+            server.dataplane, server.model_repository_extension)
         return rest_server.create_application()
 
     @pytest.fixture(scope='class')
@@ -585,7 +610,8 @@ class TestTFHttpServerAvroCloudEvent:
         writer.write(msg, encoder)
         data = bytes_writer.getvalue()
 
-        event = dummy_cloud_event(data, set_contenttype=True, contenttype="application/avro")
+        event = dummy_cloud_event(
+            data, set_contenttype=True, contenttype="application/avro")
         # Creates the HTTP request representation of the CloudEvent in binary content mode
         headers, body = to_binary(event)
         resp = http_server_client.post('/v1/models/TestModel:predict', headers=headers, content=body)
@@ -604,8 +630,10 @@ class TestTFHttpServerLoadAndUnLoad:
 
     @pytest.fixture(scope="class")
     def app(self):  # pylint: disable=no-self-use
-        server = ModelServer(registered_models=DummyModelRepository(test_load_success=True))
-        rest_server = RESTServer(server.dataplane, server.model_repository_extension)
+        server = ModelServer(
+            registered_models=DummyModelRepository(test_load_success=True))
+        rest_server = RESTServer(
+            server.dataplane, server.model_repository_extension)
         return rest_server.create_application()
 
     @pytest.fixture(scope='class')
@@ -626,8 +654,10 @@ class TestTFHttpServerLoadAndUnLoad:
 class TestTFHttpServerLoadAndUnLoadFailure:
     @pytest.fixture(scope="class")
     def app(self):  # pylint: disable=no-self-use
-        server = ModelServer(registered_models=DummyModelRepository(test_load_success=False))
-        rest_server = RESTServer(server.dataplane, server.model_repository_extension)
+        server = ModelServer(
+            registered_models=DummyModelRepository(test_load_success=False))
+        rest_server = RESTServer(
+            server.dataplane, server.model_repository_extension)
         return rest_server.create_application()
 
     @pytest.fixture(scope='class')
@@ -649,7 +679,8 @@ class TestTFHttpServerModelNotReady:
         model = DummyModel("TestModel")
         server = ModelServer()
         server.register_model(model)
-        rest_server = RESTServer(server.dataplane, server.model_repository_extension)
+        rest_server = RESTServer(
+            server.dataplane, server.model_repository_extension)
         return rest_server.create_application()
 
     @pytest.fixture(scope='class')

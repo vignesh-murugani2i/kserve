@@ -15,7 +15,7 @@
 import inspect
 import time
 from enum import Enum
-from typing import Dict, List, Union, Optional, AsyncIterator, Any
+from typing import Dict, List, Tuple, Union, Optional, AsyncIterator, Any
 
 import grpc
 import httpx
@@ -135,14 +135,18 @@ class Model:
         if verb == InferenceVerb.EXPLAIN:
             with EXPLAIN_HIST_TIME.labels(**prom_labels).time():
                 start = time.time()
-                response = (await self.explain(payload, headers)) if inspect.iscoroutinefunction(self.explain) \
-                    else self.explain(payload, headers)
+                if inspect.iscoroutinefunction(self.explain):
+                    response, response_headers = (await self.explain(payload, headers))
+                else:
+                    response, response_headers = self.explain(payload, headers)
                 explain_ms = get_latency_ms(start, time.time())
         elif verb == InferenceVerb.PREDICT:
             with PREDICT_HIST_TIME.labels(**prom_labels).time():
                 start = time.time()
-                response = (await self.predict(payload, headers)) if inspect.iscoroutinefunction(self.predict) \
-                    else self.predict(payload, headers)
+                if inspect.iscoroutinefunction(self.predict):
+                    response, response_headers = (await self.predict(payload, headers))
+                else:
+                    response, response_headers = self.predict(payload, headers)
                 predict_ms = get_latency_ms(start, time.time())
         else:
             raise NotImplementedError
@@ -158,7 +162,7 @@ class Model:
                               f"explain_ms: {explain_ms}, predict_ms: {predict_ms}, "
                               f"postprocess_ms: {postprocess_ms}")
 
-        return response
+        return response, response_headers
 
     @property
     def _http_client(self):
@@ -174,10 +178,12 @@ class Model:
                 port = 443 if self.use_ssl else 80
                 self.predictor_host = f"{self.predictor_host}:{port}"
             if self.use_ssl:
-                _channel = grpc.aio.secure_channel(self.predictor_host, grpc.ssl_channel_credentials())
+                _channel = grpc.aio.secure_channel(
+                    self.predictor_host, grpc.ssl_channel_credentials())
             else:
                 _channel = grpc.aio.insecure_channel(self.predictor_host)
-            self._grpc_client_stub = grpc_predict_v2_pb2_grpc.GRPCInferenceServiceStub(_channel)
+            self._grpc_client_stub = grpc_predict_v2_pb2_grpc.GRPCInferenceServiceStub(
+                _channel)
         return self._grpc_client_stub
 
     def validate(self, payload):
@@ -252,9 +258,11 @@ class Model:
 
     async def _http_predict(self, payload: Union[Dict, InferRequest], headers: Dict[str, str] = None) -> Dict:
         protocol = "https" if self.use_ssl else "http"
-        predict_url = PREDICTOR_URL_FORMAT.format(protocol, self.predictor_host, self.name)
+        predict_url = PREDICTOR_URL_FORMAT.format(
+            protocol, self.predictor_host, self.name)
         if self.protocol == PredictorProtocol.REST_V2.value:
-            predict_url = PREDICTOR_V2_URL_FORMAT.format(protocol, self.predictor_host, self.name)
+            predict_url = PREDICTOR_V2_URL_FORMAT.format(
+                protocol, self.predictor_host, self.name)
 
         # Adjusting headers. Inject content type if not exist.
         # Also, removing host, as the header is the one passed to transformer and contains transformer's host
@@ -283,11 +291,13 @@ class Model:
                 if "error" in error_message:
                     error_message = error_message["error"]
             message = message.format(response, error_message=error_message)
-            raise HTTPStatusError(message, request=response.request, response=response)
-        return orjson.loads(response.content)
+            raise HTTPStatusError(
+                message, request=response.request, response=response)
+        return orjson.loads(response.content), response.headers
 
     async def _grpc_predict(self, payload: Union[ModelInferRequest, InferRequest], headers: Dict[str, str] = None) \
             -> ModelInferResponse:
+        response_headers = {}
         if isinstance(payload, InferRequest):
             payload = payload.to_grpc()
         async_result = await self._grpc_client.ModelInfer(
@@ -297,12 +307,11 @@ class Model:
                       ('response_type', 'grpc_v2'),
                       ('x-request-id', headers.get('x-request-id', '')))
         )
-        return async_result
+        return async_result, response_headers
 
     async def predict(self, payload: Union[Dict, InferRequest, ModelInferRequest],
-                      headers: Dict[str, str] = None) -> Union[Dict, InferResponse]:
-        """ The `predict` handler can be overridden for performing the inference.
-            By default, the predict handler makes call to predictor for the inference step.
+                      headers: Dict[str, str] = None) -> Tuple[Union[Dict, InferResponse], Dict]:
+        """
 
         Args:
             payload: Model inputs passed from `preprocess` handler.
@@ -317,12 +326,21 @@ class Model:
         if not self.predictor_host:
             raise NotImplementedError("Could not find predictor_host.")
         if self.protocol == PredictorProtocol.GRPC_V2.value:
-            res = await self._grpc_predict(payload, headers)
-            return InferResponse.from_grpc(res)
+            response_content, response_headers = await self._grpc_predict(payload, headers)
+            return InferResponse.from_grpc(response_content), response_headers
         else:
-            res = await self._http_predict(payload, headers)
+            response_content, response_headers = await self._http_predict(payload, headers)
+            response_headers = {}
+            # Check if 'Content-Length' header exists in the response.headers dictionary
+            if 'Content-Length' in response_headers:
+                # Remove the 'Content-Length' from response header
+                del response_headers['Content-Length']
+
             # return an InferResponse if this is REST V2, otherwise just return the dictionary
-            return InferResponse.from_rest(self.name, res) if is_v2(PredictorProtocol(self.protocol)) else res
+            if is_v2(PredictorProtocol(self.protocol)):
+                return InferResponse.from_rest(self.name, response_content), response_headers
+            else:
+                return response_content, response_headers
 
     async def generate(self, payload: GenerateRequest,
                        headers: Dict[str, str] = None) -> Union[GenerateResponse, AsyncIterator[Any]]:
@@ -358,4 +376,4 @@ class Model:
         )
 
         response.raise_for_status()
-        return orjson.loads(response.content)
+        return orjson.loads(response.content), response.headers
