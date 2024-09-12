@@ -40,7 +40,7 @@ type LoggerHandler struct {
 	namespace        string
 	component        string
 	endpoint         string
-	next             http.Handler
+	next              http.Handler
 }
 
 func New(logUrl *url.URL, sourceUri *url.URL, logMode v1beta1.LoggerType,
@@ -134,7 +134,7 @@ func (eh *LoggerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		eh.log.Info("Failed to proxy request", "status code", rr.Code)
 	}
 
-	header := w.Header()
+	header :=  w.Header()
 	for k, v := range rr.Header() {
 		header[k] = v
 	}
